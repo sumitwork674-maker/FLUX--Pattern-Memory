@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FLUX - Pattern Memory</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            overflow: hidden;
+            user-select: none;
+            touch-action: manipulation;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px 0;
+        }
+
+        .title {
+            font-size: 36px;
+            letter-spacing: 10px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 20px #00ff00;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00; }
+            to { text-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00, 0 0 40px #00ff00; }
+        }
+
+        .subtitle {
+            font-size: 10px;
+            color: #666;
+            letter-spacing: 3px;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #111;
+            border: 1px solid #1a1a1a;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: #666;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .stat-value.highlight {
+            color: #ffff00;
+            text-shadow: 0 0 10px #ffff00;
+            animation: pulse 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .phase-indicator {
+            font-size: 11px;
+            color: #666;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .phase-indicator.active {
+            color: #00ff00;
+        }
+
+        .sequence-display {
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 40px;
+            width: 100%;
+        }
+
+        .sequence-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .sequence-item {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            background: #111;
+            position: relative;
+            opacity: 0;
+        }
+
+        .sequence-item.show {
+            animation: itemAppear 0.3s forwards;
+        }
+
+        .sequence-item.next-slot {
+            border-color: #00ff00;
+            border-style: dashed;
+        }
+
+        .sequence-item.next-slot::after {
+            content: '?';
+            color: #333;
+            font-size: 40px;
+        }
+
+        @keyframes itemAppear {
+            from {
+                opacity: 0;
+                transform: scale(0) rotate(180deg);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .sequence-item.fade-out {
+            animation: fadeOut 0.5s forwards;
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                filter: blur(5px);
+            }
+        }
+
+        .countdown {
+            font-size: 80px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .countdown.warning {
+            color: #ff0000;
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .instruction {
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        .instruction.active {
+            color: #00ff00;
+            font-size: 16px;
+        }
+
+        .choice-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 400px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .choice-buttons.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .choice-btn {
+            background: #111;
+            border: 3px solid #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 64px;
+            padding: 50px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .choice-btn:active {
+            transform: scale(0.95);
+        }
+
+        .choice-btn:hover {
+            border-color: #00ff00;
+            box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
+        }
+
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .result-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .result-content {
+            text-align: center;
+        }
+
+        .result-icon {
+            font-size: 120px;
+            margin-bottom: 20px;
+        }
+
+        .result-text {
+            font-size: 32px;
+            margin-bottom: 10px;
+            letter-spacing: 4px;
+        }
+
+        .result-text.correct {
+            color: #00ff00;
+            text-shadow: 0 0 30px #00ff00;
+        }
+
+        .result-text.wrong {
+            color: #ff0000;
+            text-shadow: 0 0 30px #ff0000;
+        }
+
+        .result-points {
+            font-size: 24px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .continue-hint {
+            font-size: 12px;
+            color: #333;
+            letter-spacing: 2px;
+            animation: fadeInOut 2s infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .streak-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #666;
+            background: #111;
+            padding: 10px 15px;
+            border: 1px solid #1a1a1a;
+            display: none;
+        }
+
+        .streak-indicator.show {
+            display: block;
+            animation: slideIn 0.3s;
+        }
+
+        .streak-indicator.hot {
+            color: #ffff00;
+            border-color: #ffff00;
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+
+        @media (max-width: 400px) {
+            .title { font-size: 28px; letter-spacing: 6px; }
+            .choice-btn { font-size: 48px; padding: 40px; }
+            .sequence-item { width: 50px; height: 50px; font-size: 28px; }
+            .result-icon { font-size: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">FLUX</div>
+            <div class="subtitle">PATTERN MEMORY PROTOCOL</div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-label">SCORE</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">STREAK</div>
+                <div class="stat-value" id="streak">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">LEVEL</div>
+                <div class="stat-value" id="level">1</div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="phase-indicator" id="phaseIndicator">INITIALIZING...</div>
+
+            <div class="sequence-display">
+                <div class="countdown" id="countdown" style="display: none;"></div>
+                <div class="sequence-container" id="sequenceContainer"></div>
+            </div>
+
+            <div class="instruction" id="instruction">Get ready...</div>
+
+            <div class="choice-buttons" id="choiceButtons">
+                <button class="choice-btn" onclick="makeGuess(0)">0</button>
+                <button class="choice-btn" onclick="makeGuess(1)">1</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="streak-indicator" id="streakIndicator">
+        🔥 STREAK x<span id="streakCount">0</span>
+    </div>
+
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-content">
+            <div class="result-icon" id="resultIcon"></div>
+            <div class="result-text" id="resultText"></div>
+            <div class="result-points" id="resultPoints"></div>
+            <div class="continue-hint">TAP TO CONTINUE</div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let gameState = {
+            score: 0,
+            streak: 0,
+            level: 1,
+            sequence: [],
+            correctAnswer: null,
+            phase: 'ready', // ready, showing, memorizing, guessing, result
+            sequenceLength: 3,
+            showTime: 3000, // Time to show sequence
+            memorizeTime: 2000 // Time to memorize before guessing
+        };
+
+        // Generate sequence with pattern psychology
+        function generateSequence() {
+            const length = gameState.sequenceLength;
+            const sequence = [];
+            
+            // 50% chance of having a pattern
+            const hasPattern = Math.random() < 0.5;
+            
+            if (hasPattern) {
+                // Patterns: alternating, repeating, or progressive
+                const patternType = Math.floor(Math.random() * 3);
+                
+                if (patternType === 0) {
+                    // Alternating: 0,1,0,1...
+                    for (let i = 0; i < length; i++) {
+                        sequence.push(i % 2);
+                    }
+                } else if (patternType === 1) {
+                    // Repeating: 0,0,0... or 1,1,1...
+                    const value = Math.random() < 0.5 ? 0 : 1;
+                    for (let i = 0; i < length; i++) {
+                        sequence.push(value);
+                    }
+                } else {
+                    // Mixed with slight bias
+                    for (let i = 0; i < length; i++) {
+                        sequence.push(Math.random() < 0.6 ? sequence[sequence.length - 1] || 0 : (sequence[sequence.length - 1] === 0 ? 1 : 0));
+                    }
+                }
+            } else {
+                // Random sequence
+                for (let i = 0; i < length; i++) {
+                    sequence.push(Math.random() < 0.5 ? 0 : 1);
+                }
+            }
+            
+            // Determine next number (answer)
+            if (hasPattern && sequence.length > 0) {
+                // Continue the pattern
+                const last = sequence[sequence.length - 1];
+                const secondLast = sequence[sequence.length - 2];
+                
+                if (last === secondLast) {
+                    gameState.correctAnswer = last; // Repeating
+                } else {
+                    gameState.correctAnswer = last === 0 ? 1 : 0; // Alternating
+                }
+            } else {
+                // Random next
+                gameState.correctAnswer = Math.random() < 0.5 ? 0 : 1;
+            }
+            
+            return sequence;
+        }
+
+        // Show sequence phase
+        async function showSequence() {
+            gameState.phase = 'showing';
+            gameState.sequence = generateSequence();
+            
+            const container = document.getElementById('sequenceContainer');
+            const phaseIndicator = document.getElementById('phaseIndicator');
+            const instruction = document.getElementById('instruction');
+            
+            container.innerHTML = '';
+            phaseIndicator.textContent = '[ PATTERN LOADING ]';
+            phaseIndicator.className = 'phase-indicator active';
+            instruction.textContent = 'Watch the pattern...';
+            instruction.className = 'instruction active';
+            
+            // Show each item in sequence with delay
+            for (let i = 0; i < gameState.sequence.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 400));
+                const item = document.createElement('div');
+                item.className = 'sequence-item show';
+                item.textContent = gameState.sequence[i];
+                container.appendChild(item);
+            }
+            
+            // Show the next slot (question mark)
+            await new Promise(resolve => setTimeout(resolve, 400));
+            const nextSlot = document.createElement('div');
+            nextSlot.className = 'sequence-item next-slot show';
+            container.appendChild(nextSlot);
+            
+            // Wait for show time
+            await new Promise(resolve => setTimeout(resolve, gameState.showTime));
+            
+            startMemorizePhase();
+        }
+
+        // Memorize phase with countdown
+        async function startMemorizePhase() {
+            gameState.phase = 'memorizing';
+            
+            const phaseIndicator = document.getElementById('phaseIndicator');
+            const instruction = document.getElementById('instruction');
+            const countdown = document.getElementById('countdown');
+            const container = document.getElementById('sequenceContainer');
+            
+            phaseIndicator.textContent = '[ MEMORIZING ]';
+            instruction.textContent = 'Remember the pattern!';
+            
+            // Fade out sequence
+            const items = container.querySelectorAll('.sequence-item:not(.next-slot)');
+            items.forEach(item => item.classList.add('fade-out'));
+            
+            countdown.style.display = 'block';
+            
+            let timeLeft = Math.ceil(gameState.memorizeTime / 1000);
+            
+            for (let i = timeLeft; i > 0; i--) {
+                countdown.textContent = i;
+                countdown.className = i <= 1 ? 'countdown warning' : 'countdown';
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            countdown.style.display = 'none';
+            startGuessPhase();
+        }
+
+        // Guess phase
+        function startGuessPhase() {
+            gameState.phase = 'guessing';
+            
+            const phaseIndicator = document.getElementById('phaseIndicator');
+            const instruction = document.getElementById('instruction');
+            const choiceButtons = document.getElementById('choiceButtons');
+            const container = document.getElementById('sequenceContainer');
+            
+            // Clear sequence except question mark
+            container.innerHTML = '';
+            const nextSlot = document.createElement('div');
+            nextSlot.className = 'sequence-item next-slot show';
+            container.appendChild(nextSlot);
+            
+            phaseIndicator.textContent = '[ PREDICT ]';
+            instruction.textContent = 'What comes next?';
+            instruction.className = 'instruction active';
+            choiceButtons.classList.add('active');
+        }
+
+        // Make a guess
+        function makeGuess(guess) {
+            if (gameState.phase !== 'guessing') return;
+            
+            gameState.phase = 'result';
+            
+            const choiceButtons = document.getElementById('choiceButtons');
+            choiceButtons.classList.remove('active');
+            
+            const isCorrect = guess === gameState.correctAnswer;
+            
+            showResult(isCorrect, guess);
+        }
+
+        // Show result
+        function showResult(isCorrect, guess) {
+            const overlay = document.getElementById('resultOverlay');
+            const icon = document.getElementById('resultIcon');
+            const text = document.getElementById('resultText');
+            const points = document.getElementById('resultPoints');
+            
+            if (isCorrect) {
+                gameState.streak++;
+                const pointsEarned = 10 * gameState.streak;
+                gameState.score += pointsEarned;
+                
+                icon.textContent = '✓';
+                text.textContent = 'CORRECT';
+                text.className = 'result-text correct';
+                points.textContent = `+${pointsEarned} POINTS | STREAK x${gameState.streak}`;
+                
+                // Update streak indicator
+                const streakIndicator = document.getElementById('streakIndicator');
+                const streakCount = document.getElementById('streakCount');
+                streakCount.textContent = gameState.streak;
+                
+                if (gameState.streak >= 3) {
+                    streakIndicator.classList.add('show', 'hot');
+                } else if (gameState.streak > 0) {
+                    streakIndicator.classList.add('show');
+                    streakIndicator.classList.remove('hot');
+                }
+                
+                // Level up every 5 correct
+                if (gameState.score > 0 && gameState.score % 50 === 0) {
+                    gameState.level++;
+                    gameState.sequenceLength = Math.min(3 + Math.floor(gameState.level / 2), 7);
+                    gameState.memorizeTime = Math.max(1000, 2000 - (gameState.level * 100));
+                }
+                
+            } else {
+                gameState.streak = 0;
+                
+                icon.textContent = '✗';
+                text.textContent = 'WRONG';
+                text.className = 'result-text wrong';
+                points.textContent = `Correct answer was: ${gameState.correctAnswer} | Streak lost`;
+                
+                document.body.classList.add('shake');
+                setTimeout(() => document.body.classList.remove('shake'), 500);
+                
+                const streakIndicator = document.getElementById('streakIndicator');
+                streakIndicator.classList.remove('show', 'hot');
+            }
+            
+            overlay.classList.add('show');
+            updateStats();
+            
+            // Auto continue after 2 seconds or tap
+            setTimeout(() => {
+                overlay.addEventListener('click', continueGame, { once: true });
+            }, 500);
+            
+            setTimeout(continueGame, 3000);
+        }
+
+        // Continue to next round
+        function continueGame() {
+            const overlay = document.getElementById('resultOverlay');
+            overlay.classList.remove('show');
+            overlay.removeEventListener('click', continueGame);
+            
+            setTimeout(() => {
+                showSequence();
+            }, 500);
+        }
+
+        // Update stats display
+        function updateStats() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('streak').textContent = gameState.streak;
+            document.getElementById('level').textContent = gameState.level;
+            
+            const scoreEl = document.getElementById('score');
+            scoreEl.classList.add('highlight');
+            setTimeout(() => scoreEl.classList.remove('highlight'), 500);
+        }
+
+        // Start game
+        setTimeout(() => {
+            showSequence();
+        }, 1000);
+    </script>
+</body>
+</html>
